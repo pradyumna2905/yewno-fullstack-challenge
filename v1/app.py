@@ -1,30 +1,12 @@
 #!flask/bin/python
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request
 import time
 import redis
 
+app = Flask(__name__)
 r = redis.Redis('localhost')
 
-
-app = Flask(__name__)
-
-hw_json = [
-            {
-                "message": "hello, world"
-            }
-            ]
-
-@app.route('/', methods=['GET'])
-def home():
-    return "hello, world"
-
-
-@app.route('/hello-world/logs', methods=['GET'])
-
-def log():
-    ipAddress = request.remote_addr
-    timestamp = str(int(time.time()))
-
+def insertToDb(ipAddress, timestamp):
     if r.exists('ip_address') and r.exists('timestamp'):
         r.append('ip_address', ipAddress)
         r.append('ip_address', ',')
@@ -40,49 +22,63 @@ def log():
         r.append('timestamp', ',')
 
 
+@app.route('/<path:key>', methods=['GET'])
+def log(key):
+    if key == 'v1/hello-world/logs':
+        ipAddress = request.remote_addr
+        timestamp = str(int(time.time()))
 
-    return jsonify({'success': hw_json})
+        insertToDb(ipAddress, timestamp)
+        hw_json = [
+                        {
+                            "message": "hello, world"
+                        }
+                    ]
 
 
-@app.route('/v1/logs', methods=['GET'])
-def log1():
-    ip = []
-    ip.append(r.mget('ip_address'))
-    print ip
 
-    a = ip[0][0]
 
-    ip_a = a.split(',')
+        return jsonify({'success': hw_json})
 
-    ts = []
-    ts.append(r.mget('timestamp'))
+    if key == 'v1/logs':
 
-    b = ts[0][0]
+            ip = []
+            ip.append(r.mget('ip_address'))
+            print ip
 
-    ts_a = b.split(',')
+            a = ip[0][0]
 
-    n = [[x, y] for x, y in zip(ip_a, ts_a)]
-    l = len(n)
+            ip_a = a.split(',')
 
-    logs = [
-            {
-                "logset": [
-                            {
-                                "endpoint": "hello-world"
-                            },
-                            {
-                                "logs": [
-                                            {
-                                            "ip": n[g][0],
-                                            "timestamp": n[g][1]
-                                            } for g in range (l-1)]
-                            }
-                ]
-            }
-    ]
+            ts = []
+            ts.append(r.mget('timestamp'))
 
-    return (jsonify({'success': logs}))
+            b = ts[0][0]
 
+            ts_a = b.split(',')
+
+            n = [[x, y] for x, y in zip(ip_a, ts_a)]
+            l = len(n)
+
+            logs = [
+                    {
+                        "logset": [
+                                    {
+                                        "endpoint": "hello-world"
+                                    },
+                                    {
+                                        "logs": [
+                                                    {
+                                                    "ip": n[g][0],
+                                                    "timestamp": n[g][1]
+                                                    } for g in range (l-1)
+                                        ]
+                                    }
+                        ]
+                    }
+            ]
+
+            return (jsonify({'success': logs}))
 
 if __name__ == '__main__':
-    app.run(debug="True")
+    app.run(host='0.0.0.0')
